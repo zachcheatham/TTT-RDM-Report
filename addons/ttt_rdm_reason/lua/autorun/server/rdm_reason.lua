@@ -11,13 +11,13 @@ local function getByUserID(id)
 	return nil
 end
 
-local function printExplanation(rdm, disconnected)
+local function printExplanation(explanation, disconnected)
 	for _, ply in ipairs(player.GetAll()) do
 		if ply:IsAdmin() and (GetRoundState() ~= ROUND_ACTIVE or (not ply:Alive() or ply:IsSpec()))then
 			if ULib then
-				ULib.tsayColor(ply, false, Color(255,0,0), "[RDM Reason] ", Color(0, 255, 0), rdm.attacker, Color(255, 255, 255), " rdmed ", Color(0, 255, 0), rdm.victim, Color(255, 255, 255), " because " .. rdm.reason)
+				ULib.tsayColor(ply, false, Color(255,0,0), "[RDM Reason] ", Color(205, 205, 205), (explanation.prevMap and "(Previous Map) " or ""), Color(0, 255, 0), explanation.attacker, Color(205, 205, 205), (disconnected and " (Disconnected) " or ""), Color(255, 255, 255), " rdmed ", Color(0, 255, 0), explanation.victim, Color(255, 255, 255), " because " .. explanation.reason)
 			else
-				ply:PrintMessage(HUD_PRINTTALK, "[RDM Reason] " .. rdm.attacker .. " rdmed " .. rdm.victim .. " because " .. rdm.reason)
+				ply:PrintMessage(HUD_PRINTTALK, "[RDM Reason] " .. explanation.attacker .. " rdmed " .. explanation.victim .. " because " .. explanation.reason)
 			end
 		end
 	end
@@ -83,7 +83,8 @@ net.Receive("RDMReason_Explain", function(len, ply)
 	if roundRDM[ply:UserID()] then
 		-- Get that data
 		local victimName = roundRDM[ply:UserID()][reason.id].victim
-		local explanation = {reason = reason.reason, victim = victimName, attacker = ply:Nick()}
+		local prevMap = roundRDM[ply:UserID()][reason.id].prevMap
+		local explanation = {reason = reason.reason, victim = victimName, attacker = ply:Nick(), prevMap = prevMap}
 		
 		-- Remove Pending	
 		roundRDM[ply:UserID()][reason.id] = nil
@@ -91,7 +92,7 @@ net.Receive("RDMReason_Explain", function(len, ply)
 			roundRDM[ply:UserID()] = nil
 		end
 		
-		if reason.reason and string.len(string.Trim(reason.reason)) > 4 then
+		if reason.reason and string.len(string.Trim(reason.reason)) > 2 then
 			-- Insert Explanation
 			if GetRoundState() == ROUND_ACTIVE then
 				explainedRDM[ply:UserID()][reason.id] = explanation -- Save for re-print after round ends
@@ -104,13 +105,17 @@ net.Receive("RDMReason_Explain", function(len, ply)
 			notifyBadReason(ply:Nick())
 		end
 	else
-		error("Warning: User sent explaination without needing to!")
+		error("Warning: User sent explanation without needing to!")
 	end
 end)
 
+local function ignoreRDM(ply)
+	return ply:GetUserGroup() == "owner"
+end
+
 local function checkDeathRDM(victim, inflictor, attacker)
 	-- Record RDM
-	if victim:IsPlayer() and attacker:IsPlayer() then -- Players are real
+	if victim:IsPlayer() and attacker:IsPlayer() and not ignoreRDM(attacker) then -- Players are real and aren't on bypass
 		if victim ~= attacker then -- Victim didn't kill himself
 			if (victim:GetRole() ~= ROLE_TRAITOR && attacker:GetRole() ~= ROLE_TRAITOR) or (victim:GetRole() == ROLE_TRAITOR && attacker:GetRole() == ROLE_TRAITOR) then -- Check if death was rdm
 				local weapon = ""
@@ -180,7 +185,6 @@ end
 hook.Add("TTTBeginRound", "RDMReason_BeginRound", roundStart)
 
 local function playerDisconnect(ply)
-	--ply:RemovePData("unexplainreted_rdm")
 	if roundRDM[ply:UserID()] then
 		RunConsoleCommand("ulx", "addslayid", ply:SteamID())
 		roundRDM[ply:UserID()] = nil
@@ -196,9 +200,11 @@ local function serverShutdown()
 			if ply then
 				for _, v in pairs(rdms) do
 					v.sent = nil
+					v.prevMap = true
 				end
 				
-				ply:SetPData("unexplained_rdm", util.TableToJSON(rdms))
+				local unexplained = {timestamp = os.time(), rdms = rdms}
+				ply:SetPData("unexplained_rdm", util.TableToJSON(unexplained))
 			end
 		end
 	end
@@ -206,15 +212,14 @@ end
 hook.Add("ShutDown", "RDMReason_Shutdown", serverShutdown)
 
 local function sendPreLevelRDM(ply)
-	local rdms = ply:GetPData("unexplained_rdm")
+	local unexplained = ply:GetPData("unexplained_rdm")
 	ply:RemovePData("unexplained_rdm")
-	if rdms then
-		print "Sending pre-level rdms"
-		roundRDM[ply:UserID()] = util.JSONToTable(rdms)
-		for _, v in pairs(roundRDM[ply:UserID()]) do 
-			v.sent = nil
+	if unexplained then
+		unexplained = util.JSONToTable(unexplained)
+		if os.time() - unexplained.timestamp < 600 then
+			roundRDM[ply:UserID()] = unexplained.rdms
+			sendRDM(ply)
 		end
-		sendRDM(ply)
 	end
 end
 hook.Add("PlayerInitialSpawn", "RDMReason_InitSpawn", sendPreLevelRDM)
