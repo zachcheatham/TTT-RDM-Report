@@ -35,11 +35,22 @@ local function notifyDisconnect(name)
 	end
 end
 
+local function notifyBadReason(name)
+	for _, ply in ipairs(player.GetAll()) do
+		if ply:IsAdmin() then
+			if ULib then
+				ULib.tsayColor(ply, false, Color(255,0,0), "[RDM Reason] ", Color(0, 255, 0), name, Color(255, 255, 255), " gave an unintelligible reason for rdming.")
+			else
+				ply:PrintMessage(HUD_PRINTTALK, "[RDM Reason] " .. name .. " gave an unintelligible reason for rdming.")
+			end
+		end
+	end
+end
+
 util.AddNetworkString("RDMReason_Committed")
 util.AddNetworkString("RDMReason_Explain")
 
 local function sendRDM(ply)
-	PrintTable(roundRDM)
 	local rdms = {}
 		
 	for k, v in pairs(roundRDM[ply:UserID()]) do
@@ -80,12 +91,17 @@ net.Receive("RDMReason_Explain", function(len, ply)
 			roundRDM[ply:UserID()] = nil
 		end
 		
-		-- Insert Explanation
-		if GetRoundState() == ROUND_ACTIVE then
-			explainedRDM[ply:UserID()][reason.id] = explanation -- Save for re-print after round ends
-			printExplanation(explanation)
+		if reason.reason and string.len(string.Trim(reason.reason)) > 4 then
+			-- Insert Explanation
+			if GetRoundState() == ROUND_ACTIVE then
+				explainedRDM[ply:UserID()][reason.id] = explanation -- Save for re-print after round ends
+				printExplanation(explanation)
+			else
+				printExplanation(explanation)
+			end
 		else
-			printExplanation(explanation)
+			RunConsoleCommand("ulx", "addslay", ply:Nick())
+			notifyBadReason(ply:Nick())
 		end
 	else
 		error("Warning: User sent explaination without needing to!")
