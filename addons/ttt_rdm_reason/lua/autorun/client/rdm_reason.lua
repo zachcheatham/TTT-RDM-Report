@@ -52,6 +52,12 @@ function helpers.createPrompt(rdmID, victim, weapon)
 		helpers.promptExplaination()
 	end	
 	
+	pnl.reasonBox.OnEnter = function()
+		pnl.submitButton.DoClick()
+	end
+	
+	pnl.reasonBox:RequestFocus()
+	
 	return pnl
 end
 
