@@ -115,21 +115,23 @@ end
 
 local function checkDeathRDM(victim, inflictor, attacker)
 	-- Record RDM
-	if victim:IsPlayer() and attacker:IsPlayer() and not ignoreRDM(attacker) then -- Players are real and aren't on bypass
-		if victim ~= attacker then -- Victim didn't kill himself
-			if (victim:GetRole() ~= ROLE_TRAITOR and attacker:GetRole() ~= ROLE_TRAITOR) or (victim:GetRole() == ROLE_TRAITOR and attacker:GetRole() == ROLE_TRAITOR) then -- Check if death was rdm
-				local weapon = ""
-				if inflictor:IsPlayer() then
-					weapon = inflictor:GetActiveWeapon():GetClass() -- Inflictor was player's weapon
-				else
-					weapon = inflictor:GetClass() -- Inflictor was fire or something (I hope)
+	if GetRoundState() == ROUND_ACTIVE then -- Only record kills during round
+		if victim:IsPlayer() and attacker:IsPlayer() and not ignoreRDM(attacker) then -- Players are real and aren't on bypass
+			if victim ~= attacker then -- Victim didn't kill himself
+				if (victim:GetRole() ~= ROLE_TRAITOR and attacker:GetRole() ~= ROLE_TRAITOR) or (victim:GetRole() == ROLE_TRAITOR and attacker:GetRole() == ROLE_TRAITOR) then -- Check if death was rdm
+					local weapon = ""
+					if inflictor:IsPlayer() then
+						weapon = inflictor:GetActiveWeapon():GetClass() -- Inflictor was player's weapon
+					else
+						weapon = inflictor:GetClass() -- Inflictor was fire or something (I hope)
+					end
+					
+					if not roundRDM[attacker:UserID()] then -- Player has not rdmed yet
+						roundRDM[attacker:UserID()] = {} -- So create him a table
+					end
+					
+					roundRDM[attacker:UserID()][victim:UserID()] = {victim = victim:Nick(), weapon = weapon}
 				end
-				
-				if not roundRDM[attacker:UserID()] then -- Player has not rdmed yet
-					roundRDM[attacker:UserID()] = {} -- So create him a table
-				end
-				
-				roundRDM[attacker:UserID()][victim:UserID()] = {victim = victim:Nick(), weapon = weapon}
 			end
 		end
 	end
