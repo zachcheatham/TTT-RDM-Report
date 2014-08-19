@@ -118,7 +118,7 @@ local function checkDeathRDM(victim, inflictor, attacker)
 	if GetRoundState() == ROUND_ACTIVE then -- Only record kills during round
 		if victim:IsPlayer() and attacker:IsPlayer() and not ignoreRDM(attacker) then -- Players are real and aren't on bypass
 			if victim ~= attacker then -- Victim didn't kill himself
-				if (victim:GetRole() ~= ROLE_TRAITOR and attacker:GetRole() ~= ROLE_TRAITOR) or (victim:GetRole() == ROLE_TRAITOR and attacker:GetRole() == ROLE_TRAITOR) then -- Check if death was rdm
+				if (victim:GetRole() ~= ROLE_TRAITOR and attacker:GetRole() ~= ROLE_TRAITOR) or (victim:GetRole() == ROLE_TRAITOR and attacker:GetRole() == ROLE_TRAITOR and inflictor:GetClass() ~= "ttt_c4") then -- Check if death was rdm
 					local weapon = ""
 					if inflictor:IsPlayer() then
 						weapon = inflictor:GetActiveWeapon():GetClass() -- Inflictor was player's weapon
