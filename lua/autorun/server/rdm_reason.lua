@@ -92,7 +92,7 @@ net.Receive("RDMReason_Explain", function(len, ply)
 			roundRDM[ply:UserID()] = nil
 		end
 		
-		if reason.reason and string.len(string.Trim(reason.reason)) > 2 then
+		if reason.reason then
 			-- Insert Explanation
 			if GetRoundState() == ROUND_ACTIVE then
 				explainedRDM[ply:UserID()][reason.id] = explanation -- Save for re-print after round ends
